@@ -23,6 +23,7 @@
     --gold:#ffcf3f; --white:#fff; --mut:rgba(255,255,255,.55);
   }
   *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   html,body{ height:100%; }
   body{
     background:var(--ink);
@@ -30,7 +31,14 @@
     font-family:'Barlow',sans-serif;
     overflow-x:hidden;
     -webkit-font-smoothing:antialiased;
+    -webkit-overflow-scrolling:touch;     /* momentum scrolling on iOS */
+    overscroll-behavior-y:none;           /* no rubber-band / pull-to-refresh jank */
+    touch-action:manipulation;            /* kill the 300ms double-tap delay */
   }
+  /* slimmer, on-brand scrollbar (desktop) */
+  ::-webkit-scrollbar{ width:10px; }
+  ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.14); border-radius:10px; border:3px solid transparent; background-clip:content-box; }
+  ::-webkit-scrollbar-thumb:hover{ background:rgba(255,255,255,.26); background-clip:content-box; }
   /* color-block backdrop behind the app frame */
   body::before{
     content:''; position:fixed; inset:0; z-index:-2;
@@ -57,11 +65,13 @@
   /* ---------------- HEADER ---------------- */
   header{
     position:sticky; top:0; z-index:30;
-    padding:14px 18px 12px;
+    padding:calc(14px + env(safe-area-inset-top)) 18px 12px;
     background:linear-gradient(180deg, rgba(12,12,22,.96), rgba(12,12,22,.78));
-    backdrop-filter:blur(10px);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
     border-bottom:1px solid var(--line);
+    transition:box-shadow .25s ease, border-color .25s ease;
   }
+  header.scrolled{ box-shadow:0 10px 30px -8px rgba(0,0,0,.6); border-bottom-color:rgba(255,255,255,.16); }
   .hrow{ display:flex; align-items:center; gap:12px; }
   .back{
     width:40px; height:40px; flex:0 0 40px; border-radius:12px;
@@ -102,10 +112,10 @@
   .chip .v.empty{ color:rgba(255,255,255,.30); }
 
   /* ---------------- MAIN ---------------- */
-  main{ flex:1; padding:18px 18px 150px; }
-  .screen{ display:none; animation:fade .4s ease both; }
-  .screen.on{ display:block; }
-  @keyframes fade{ from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:none;} }
+  main{ flex:1; padding:18px 18px calc(150px + env(safe-area-inset-bottom)); }
+  .screen{ display:none; }
+  .screen.on{ display:block; animation:fade .42s cubic-bezier(.22,1,.36,1) both; will-change:opacity, transform; }
+  @keyframes fade{ from{opacity:0; transform:translate3d(0,18px,0);} to{opacity:1; transform:none;} }
 
   .eyebrow{ font-family:'Barlow Condensed'; font-weight:800; letter-spacing:3px; font-size:14px;
     color:var(--lime); text-transform:uppercase; }
@@ -241,6 +251,14 @@
   .done-note{ color:var(--mut); font-size:15px; margin:14px auto 0; max-width:400px; line-height:1.4; }
   .follow{ display:inline-flex; align-items:center; gap:9px; margin-top:18px; background:rgba(196,245,0,.12); border:1.5px solid rgba(196,245,0,.5);
     color:var(--lime); font-family:'Barlow Condensed'; font-weight:800; letter-spacing:1px; font-size:18px; padding:12px 22px; border-radius:50px; text-decoration:none; }
+  .sociallabel{ margin-top:20px; font-family:'Barlow Condensed'; font-weight:700; text-transform:uppercase;
+    letter-spacing:.8px; font-size:13px; color:var(--mut); }
+  .socials{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:10px; }
+  .soc{ display:inline-flex; align-items:center; gap:8px; padding:11px 18px; border-radius:50px;
+    font-family:'Barlow Condensed'; font-weight:800; letter-spacing:.6px; font-size:16px; text-decoration:none; border:1.5px solid; }
+  .soc.ig{ color:#ff8fc1; border-color:rgba(255,143,193,.5); background:rgba(255,143,193,.12); }
+  .soc.fb{ color:#6ea0ff; border-color:rgba(110,160,255,.5); background:rgba(110,160,255,.12); }
+  .soc.wa{ color:#4ee08a; border-color:rgba(78,224,138,.5); background:rgba(78,224,138,.12); }
 
   .lock-emoji{ font-size:60px; }
   .center{ text-align:center; }
@@ -278,7 +296,20 @@
     background:var(--red); color:#fff; font-family:'Barlow Condensed'; font-weight:800; font-size:11px;
     letter-spacing:1px; padding:3px 12px; border-radius:0 0 10px 10px; text-transform:uppercase; display:none; }
 
-  @media(max-width:380px){ .grid{ grid-template-columns:1fr; } .hero .big{ font-size:70px; } }
+  @media(max-width:400px){
+    main{ padding-left:14px; padding-right:14px; }
+    .qtitle{ font-size:40px; }
+    .hero .big{ font-size:68px; }
+    .hero .trophy{ font-size:72px; }
+    .grid{ gap:8px; }
+    .chip .v{ font-size:13px; }
+  }
+  @media(max-width:340px){ .grid{ grid-template-columns:1fr; } }
+
+  /* respect users who prefer less motion */
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; }
+  }
 </style>
 </head>
 <body>
@@ -398,7 +429,7 @@
       </div>
       <label class="check" id="f-consent">
         <input type="checkbox" id="inConsent">
-        <span>I follow <b>@LavanderiaExpress</b>, I'm 18+, and I accept the contest rules. I understand my picks are <b>final once locked</b>.</span>
+        <span>I follow <b>@lavanderiaexpressporter</b>, I'm 18+, and I accept the contest rules. I understand my picks are <b>final once locked</b>.</span>
       </label>
     </section>
 
@@ -419,7 +450,12 @@
         <div class="entryno" id="entryNo">Entry #—</div>
         <div class="ticket" id="doneTicket"></div>
         <div class="done-note">📸 Screenshot this slip! Winners are announced after the final and contacted by phone. Tie-breaker: closest total goals.</div>
-        <a class="follow" href="https://instagram.com/LavanderiaExpress" target="_blank" rel="noopener">📲 Follow @LavanderiaExpress</a>
+        <div class="sociallabel">📣 Follow for the winner reveal · 💬 Questions? WhatsApp us</div>
+        <div class="socials">
+          <a class="soc ig" href="https://www.instagram.com/lavanderiaexpressporter/" target="_blank" rel="noopener">📸 Instagram</a>
+          <a class="soc fb" href="https://www.facebook.com/share/1d2PrQHcDq/" target="_blank" rel="noopener">👍 Facebook</a>
+          <a class="soc wa" href="https://wa.me/12817477012" target="_blank" rel="noopener">💬 WhatsApp</a>
+        </div>
       </div>
     </section>
 
@@ -815,6 +851,14 @@ async function loadTicker(){
   $('#mqTrack').style.animationDuration = Math.max(30, base.length*4) + 's';
   $('#picksMarquee').style.display = 'block';
 }
+
+/* elevate the header once the page is scrolled (subtle depth cue) */
+const _hdr = document.querySelector('header');
+let _ticking = false;
+addEventListener('scroll', ()=>{
+  if (_ticking) return; _ticking = true;
+  requestAnimationFrame(()=>{ _hdr.classList.toggle('scrolled', scrollY > 4); _ticking = false; });
+}, {passive:true});
 
 /* init */
 $('#numA').textContent = state.scoreA; $('#numB').textContent = state.scoreB;
