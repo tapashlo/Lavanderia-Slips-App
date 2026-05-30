@@ -14,15 +14,19 @@
     --lime:#c4f500; --green:#00b14f; --red:#e30b2c; --purple:#7a1fa2;
     --gold:#ffcf3f; --txt:#fff; --mut:rgba(255,255,255,.55);
   }
-  *{ box-sizing:border-box; margin:0; padding:0; }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   body{
-    font-family:'Barlow',system-ui,sans-serif; color:var(--txt); min-height:100vh;
+    font-family:'Barlow',system-ui,sans-serif; color:var(--txt); min-height:100dvh;
+    -webkit-font-smoothing:antialiased; -webkit-overflow-scrolling:touch;
+    overscroll-behavior-y:none; touch-action:manipulation;
     background:
       radial-gradient(1100px 600px at 85% -10%, rgba(122,31,162,.35), transparent 60%),
       radial-gradient(900px 600px at -10% 110%, rgba(227,11,44,.30), transparent 60%),
       var(--ink);
   }
-  .wrap{ max-width:1180px; margin:0 auto; padding:22px 18px 60px; }
+  .wrap{ max-width:1180px; margin:0 auto;
+    padding:calc(20px + env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left)); }
 
   /* ---- login ---- */
   .login{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -90,8 +94,42 @@
   .del:hover{ background:var(--red); border-color:var(--red); color:#fff; }
   .del:active{ transform:scale(.92); }
   .del[disabled]{ opacity:.5; cursor:default; }
+  .del .dtxt{ display:none; }   /* shown only in mobile card view */
   .empty{ text-align:center; color:var(--mut); padding:50px 0; font-weight:600; }
   .foot{ color:var(--mut); font-size:12.5px; text-align:center; margin-top:16px; line-height:1.5; }
+  td a.tel{ color:inherit; text-decoration:none; border-bottom:1px dotted rgba(255,255,255,.3); }
+
+  /* ---- mobile: stack toolbar, turn table rows into cards ---- */
+  @media(max-width:760px){
+    .top{ gap:10px; }
+    .top .ttl{ font-size:24px; flex:1 1 100%; }
+    .pill{ order:3; }
+    .spacer{ display:none; }
+    #search{ flex:1 1 100%; max-width:none; min-width:0; order:5; padding:13px 14px; font-size:16px; }
+    .tool{ order:6; flex:1; text-align:center; padding:12px 10px; }
+
+    .tablewrap{ background:transparent; border:0; border-radius:0; overflow:visible; }
+    table, thead, tbody, tr, td{ display:block; width:100%; }
+    thead{ display:none; }
+    table{ white-space:normal; }
+    tbody tr{ background:var(--panel); border:1.5px solid var(--line); border-radius:16px;
+      margin-bottom:12px; padding:6px 4px 8px; position:relative; }
+    tbody tr:hover{ background:var(--panel); }
+    td{ border:0; padding:9px 16px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    td::before{ content:attr(data-label); flex:0 0 auto; font-family:'Barlow Condensed'; font-weight:700;
+      text-transform:uppercase; letter-spacing:.5px; font-size:12px; color:var(--mut); }
+    /* name becomes the card title (full width, no label) */
+    td.name{ font-size:20px; padding:12px 16px 6px; border-bottom:1px solid var(--line); margin-bottom:4px; }
+    td.name::before{ display:none; }
+    /* id + time share the title row area, lighter */
+    td.num{ font-size:13px; }
+    /* delete button: full-width action at the bottom of the card */
+    td.delcell{ padding-top:10px; }
+    td.delcell::before{ display:none; }
+    .del{ width:100%; height:auto; padding:11px; border-radius:11px; font-size:14px;
+      font-family:'Barlow Condensed'; font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
+    .del .dtxt{ display:inline; }
+  }
   .hide{ display:none !important; }
 </style>
 </head>
@@ -219,19 +257,22 @@ function render(){
   });
   $('#count').textContent = DATA.length;
   $('#emptyNote').classList.toggle('hide', rows.length>0);
-  $('#rows').innerHTML = rows.map(r=>`
+  $('#rows').innerHTML = rows.map(r=>{
+    const tel = (r.phone||'').replace(/\D/g,'');
+    return `
     <tr>
-      <td class="num">${esc(r.id)}</td>
-      <td class="num">${fmtTime(r.created_at)}</td>
-      <td class="name">${esc(r.name)}</td>
-      <td>${fmtPhone(r.phone)}</td>
-      <td>${r.instagram?esc(r.instagram):'<span style="color:var(--mut)">—</span>'}</td>
-      <td><span class="tag champ">${esc(r.champion)}</span></td>
-      <td><span class="tag run">${esc(r.runner_up)}</span></td>
-      <td><span class="tag boot">${esc(r.golden_boot)}</span></td>
-      <td><span class="tag score">${esc(r.score_a)}–${esc(r.score_b)}</span></td>
-      <td><button class="del" data-id="${esc(r.id)}" data-name="${esc(r.name)}" title="Delete entry">🗑</button></td>
-    </tr>`).join('');
+      <td class="num" data-label="#">${esc(r.id)}</td>
+      <td class="num" data-label="Entered">${fmtTime(r.created_at)}</td>
+      <td class="name" data-label="Name">${esc(r.name)}</td>
+      <td data-label="Phone"><a class="tel" href="tel:+1${esc(tel)}">${fmtPhone(r.phone)}</a></td>
+      <td data-label="Instagram">${r.instagram?esc(r.instagram):'<span style="color:var(--mut)">—</span>'}</td>
+      <td data-label="Champion"><span class="tag champ">${esc(r.champion)}</span></td>
+      <td data-label="Runner-Up"><span class="tag run">${esc(r.runner_up)}</span></td>
+      <td data-label="Golden Boot"><span class="tag boot">${esc(r.golden_boot)}</span></td>
+      <td data-label="Final Score"><span class="tag score">${esc(r.score_a)}–${esc(r.score_b)}</span></td>
+      <td class="delcell"><button class="del" data-id="${esc(r.id)}" data-name="${esc(r.name)}" title="Delete entry">🗑 <span class="dtxt">Delete</span></button></td>
+    </tr>`;
+  }).join('');
 }
 $('#search').addEventListener('input', render);
 
